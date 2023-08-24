@@ -1,0 +1,84 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+LiquidCrystal_I2C lcd(0x27, 16, 2); // Dirección I2C y tamaño del LCD (16x2)
+int temperatura = 25;               // Variable de temperatura inicial
+int countdownMinutes = 480;         // Contador descendente en minutos (8 horas)
+unsigned long lastUpdateTime = 0;   // Registro del tiempo de la última actualización del contador
+bool showMenu = false;              // Variable para controlar la pantalla de menú
+bool showCountdown = false;         // Variable para controlar la pantalla de contador
+
+void setup() {
+  Serial.begin(9600);               // Inicializa la comunicación serial
+  lcd.init();                       // Inicializa el LCD
+  lcd.backlight();                  // Enciende la retroiluminación
+  lcd.setCursor(0, 0);              // Coloca el cursor en la primera fila, primera columna
+  lcd.print("Yogurtera");           // Imprime el título de la pantalla
+}
+
+void loop() {
+  // Si showMenu es false, esperamos comandos para mostrar el menú
+  if (!showMenu) {
+    if (Serial.available()) {
+      char command = Serial.read();
+      if (command == '>') {
+        showMenu = true;
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("Temperatura:");
+        lcd.setCursor(0, 1);
+        lcd.print(temperatura);
+      }
+    }
+  }
+  // Si showMenu es true, esperamos comandos para ajustar la temperatura
+  else if (showMenu) {
+    if (Serial.available()) {
+      char command = Serial.read();
+      if (command == '+') {
+        temperatura++;
+        updateTemperatureDisplay();
+      } else if (command == '-') {
+        temperatura--;
+        updateTemperatureDisplay();
+      } else if (command == '>') {
+        showCountdown = true;
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("Temp:");
+        lcd.print(temperatura);
+        lcd.print("C");
+        lcd.setCursor(0, 1);
+        updateCountdownDisplay();
+        lastUpdateTime = millis(); // Registra el tiempo de inicio del contador
+      }
+    }
+  }
+
+  // Si showCountdown es true, actualiza el contador descendente cada minuto
+  if (showCountdown && millis() - lastUpdateTime >= 60000) {
+    countdownMinutes--;
+    updateCountdownDisplay();
+    lastUpdateTime = millis(); // Actualiza el tiempo de última actualización
+  }
+}
+
+void updateTemperatureDisplay() {
+  lcd.setCursor(0, 1);
+  lcd.print("                "); // Borra la línea anterior
+  lcd.setCursor(0, 1);
+  lcd.print(temperatura);
+}
+
+void updateCountdownDisplay() {
+  int hours = countdownMinutes / 60;
+  int minutes = countdownMinutes % 60;
+
+  lcd.setCursor(0, 1);
+  lcd.print("Contador: ");
+  lcd.print(hours);
+  lcd.print("h ");
+  lcd.print(minutes);
+  lcd.print("m");
+}
+
